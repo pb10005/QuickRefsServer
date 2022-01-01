@@ -15,7 +15,8 @@
       "launchUrl": "swagger",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "REDIS_CONNECTION": "192.168.2.60:6379"
+        "REDIS_CONNECTION": "192.168.2.60:6379",
+        "POSTGRES_CONNECTION": "Host=192.168.2.53;Port=5432;UserId=quickrefs;Password=quickrefs;Database=quickrefs"
       },
       "applicationUrl": "https://0.0.0.0:7090;http://localhost:5090",
       "dotnetRunMessages": true

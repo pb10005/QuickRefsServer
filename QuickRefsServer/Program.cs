@@ -4,7 +4,7 @@ using Microsoft.Extensions.Caching.StackExchangeRedis;
 using QuickRefsServer.Models;
 
 var builder = WebApplication.CreateBuilder(args);
-const string PostgresConnStr = "Host=192.168.2.53;Port=5432;User Id=quickrefs;Password=quickrefs;Database=quickrefs";
+string PostgresConnStr = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
 
 builder.Services.AddControllers();
 builder.Services.AddDbContext<QuickRefsDbContext>(opt =>
