@@ -40,6 +40,19 @@ namespace QuickRefsServer.Controllers
 
             return tag;
         }
+        // GET: api/Tags/5
+        [HttpGet("findByName/{name}")]
+        public async Task<ActionResult<Tag>> GetTagByName(string name)
+        {
+            var tag = await _context.Tags.SingleOrDefaultAsync(t => t.Name == name);
+
+            if (tag == null)
+            {
+                return NotFound();
+            }
+
+            return tag;
+        }
 
         // PUT: api/Tags/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
