@@ -91,26 +91,30 @@ namespace QuickRefsServer.Controllers
         // POST: api/KnowledgeTags
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<KnowledgeTag>> PostKnowledgeTag(KnowledgeTag knowledgeTag)
+        public async Task<ActionResult<KnowledgeTag>> PostKnowledgeTag(KnowledgeTagProperty ktProp)
         {
-            _context.KnowledgeTags.Add(knowledgeTag);
+            Tag tag = _context.Tags.SingleOrDefault(t => t.Name == ktProp.TagName);
+
+            if (tag == null)
+            {
+                return BadRequest("タグがありません");
+            }
+            
+            KnowledgeTag kt = new KnowledgeTag();
+            kt.KnowledgeId = ktProp.KnowledgeId;
+            kt.TagId = tag.Id;
+            _context.KnowledgeTags.Add(kt);
+
             try
             {
                 await _context.SaveChangesAsync();
             }
             catch (DbUpdateException)
             {
-                if (KnowledgeTagExists(knowledgeTag.KnowledgeId))
-                {
-                    return Conflict();
-                }
-                else
-                {
-                    throw;
-                }
+               throw;
             }
 
-            return CreatedAtAction("GetKnowledgeTag", new { id = knowledgeTag.KnowledgeId }, knowledgeTag);
+            return CreatedAtAction("GetKnowledgeTag", new { id = kt.KnowledgeId }, kt);
         }
 
         // DELETE: api/KnowledgeTags/5
