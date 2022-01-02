@@ -22,8 +22,19 @@ namespace QuickRefsServer.Controllers
         }
 
         // GET: api/KnowledgeTags
+        [HttpGet("findByKnowledge/{id}")]
+        public async Task<ActionResult<IEnumerable<Tag>>> GetKnowledgeTagsByKnowledgeId(Guid id)
+        {
+            return await _context.Tags
+                .Where(t => _context.KnowledgeTags
+                            .Where(kt => kt.KnowledgeId == id)
+                            .Any(kt => kt.TagId == t.Id))
+                .ToListAsync();
+        }
+
+        // GET: api/KnowledgeTags
         [HttpGet("findByTag/{id}")]
-        public async Task<ActionResult<IEnumerable<Knowledge>>> GetKnowledgeTags(Guid id)
+        public async Task<ActionResult<IEnumerable<Knowledge>>> GetKnowledgeTagsByTagId(Guid id)
         {
             return await _context.Knowledges
                 .Where(k => _context.KnowledgeTags
