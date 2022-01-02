@@ -54,7 +54,6 @@ namespace QuickRefsServer.Controllers
         [HttpPost("signup")]
         public async Task<ActionResult<bool>> Signup(UserInfo userInfo)
         {
-            Console.WriteLine("name: {0}, password: {1}", userInfo.Name, userInfo.Password);
             bool isSignupOK = !_context.Users.Any(u => u.Name ==　userInfo.Name);
 
             if (isSignupOK)
