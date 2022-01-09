@@ -19,10 +19,13 @@ builder.Services.AddCors(options =>
         builder =>
         {
             builder.WithOrigins("http://localhost:3000")
+                .AllowAnyMethods()
                 .AllowAnyHeader();
             builder.WithOrigins("http://192.168.2.54:3000")
+                .AllowAnyMethods()
                 .AllowAnyHeader();
             builder.WithOrigins("http://nodejs.svr:3000")
+                .AllowAnyMethods()
                 .AllowAnyHeader();
         });
 });
