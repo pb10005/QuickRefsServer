@@ -27,6 +27,9 @@ builder.Services.AddCors(options =>
             builder.WithOrigins("http://nodejs.svr:3000")
                 .AllowAnyMethod()
                 .AllowAnyHeader();
+            builder.WithOrigins("https://quickrefs.netlify.app")
+                .AllowAnyMethod()
+                .AllowAnyHeader();
         });
 });
 
