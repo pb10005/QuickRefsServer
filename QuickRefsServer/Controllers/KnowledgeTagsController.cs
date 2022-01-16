@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuickRefsServer.Models;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace QuickRefsServer.Controllers
 {
@@ -15,10 +16,12 @@ namespace QuickRefsServer.Controllers
     public class KnowledgeTagsController : ControllerBase
     {
         private readonly QuickRefsDbContext _context;
+        private readonly IDistributedCache _cache;
 
-        public KnowledgeTagsController(QuickRefsDbContext context)
+        public KnowledgeTagsController(QuickRefsDbContext context, IDistributedCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
         // GET: api/KnowledgeTags
@@ -36,10 +39,17 @@ namespace QuickRefsServer.Controllers
         [HttpGet("findByTag/{id}")]
         public async Task<ActionResult<IEnumerable<Knowledge>>> GetKnowledgeTagsByTagId(Guid id)
         {
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            string userId = _cache.GetString(sessionId);
             return await _context.Knowledges
                 .Where(k => _context.KnowledgeTags
                             .Where(kt => kt.TagId == id)
                             .Any(kt => kt.KnowledgeId == k.Id))
+                .Where(k => !k.IsPrivate
+                || (!string.IsNullOrWhiteSpace(userId)
+                    && _context.UserKnowledges
+                    .Where(uk => uk.KnowledgeId == k.Id)
+                    .Any(uk => uk.UserId.ToString() == userId)))
                 .ToListAsync();
         }
 

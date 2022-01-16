@@ -29,13 +29,17 @@ namespace QuickRefsServer.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Knowledge>>> GetKnowledges()
         {
-            return await _context.Knowledges.ToListAsync();
+            return await _context.Knowledges
+                .Where(k => !k.IsPrivate)
+                .ToListAsync();
         }
 
         // GET: api/Knowledges/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Knowledge>> GetKnowledge(Guid id)
         {
+            // Publicの場合：閲覧可
+            // Privateの場合：UserKnowledgeにあれば閲覧可、なければ閲覧不可
             var knowledge = await _context.Knowledges.FindAsync(id);
 
             if (knowledge == null)
@@ -43,7 +47,27 @@ namespace QuickRefsServer.Controllers
                 return NotFound();
             }
 
-            return knowledge;
+            if (!knowledge.IsPrivate)
+            {
+                return knowledge;
+            }
+            else
+            {
+                Request.Headers.TryGetValue("sessionId", out var sessionId);
+                var userId = _cache.GetString(sessionId);
+                bool isPrivileged =  _context.UserKnowledges
+                    .Where(uk => uk.KnowledgeId == id)
+                    .Any(uk => uk.UserId.ToString() == userId);
+                    
+                if(isPrivileged)
+                {
+                    return knowledge;
+                }
+                else
+                {
+                    return BadRequest("閲覧権限がありません");
+                }
+            }
         }
 
         // PUT: api/Knowledges/5
