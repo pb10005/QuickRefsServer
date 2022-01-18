@@ -63,13 +63,23 @@ namespace QuickRefsServer.Controllers
         // PUT: api/Users/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutUser(Guid id, User user)
+        public async Task<IActionResult> PutUser(Guid id, BioProfile bio)
         {
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var userId = _cache.GetString(sessionId);
+            var user = await _context.Users.FindAsync(Guid.Parse(userId));
+
+            if (user == null)
+            {
+                return BadRequest();
+            }
+
             if (id != user.Id)
             {
                 return BadRequest();
             }
 
+            user.ScreenName = bio.ScreenName;
             _context.Entry(user).State = EntityState.Modified;
 
             try
