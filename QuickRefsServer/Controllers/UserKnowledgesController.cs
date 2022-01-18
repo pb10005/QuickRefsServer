@@ -22,11 +22,21 @@ namespace QuickRefsServer.Controllers
 
         // GET: api/UserKnowledges/findByUser/5
         [HttpGet("findByUser/{userId}")]
-        public async Task<ActionResult<IEnumerable<Knowledge>>> GetUserKnowledges(string userId)
+        public async Task<ActionResult<IEnumerable<Knowledge>>> GetUserKnowledgeByUser(string userId)
         {
             return await _context.Knowledges
                     .Where(k => _context.UserKnowledges.Where(uk => uk.UserId == Guid.Parse(userId))
                     .Any(uk => uk.KnowledgeId == k.Id))
+                    .ToListAsync();
+        }
+
+        // GET: api/UserKnowledges/findByKnowledge/5
+        [HttpGet("findByKnowledge/{knowledgeId}")]
+        public async Task<ActionResult<IEnumerable<User>>> GetUserKnowledgeByKnowledge(string knowledgeId)
+        {
+            return await _context.Users
+                    .Where(u => _context.UserKnowledges.Where(uk => uk.KnowledgeId == Guid.Parse(knowledgeId))
+                    .Any(uk => uk.UserId == u.Id))
                     .ToListAsync();
         }
 
