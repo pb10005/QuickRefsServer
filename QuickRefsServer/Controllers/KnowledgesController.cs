@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using QuickRefsServer.Models;
 using System.Text;
 using Microsoft.Extensions.Caching.Distributed;
+using QuickRefsServer.Utils;
 
 
 namespace QuickRefsServer.Controllers
@@ -38,8 +39,6 @@ namespace QuickRefsServer.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Knowledge>> GetKnowledge(Guid id)
         {
-            // Publicの場合：閲覧可
-            // Privateの場合：UserKnowledgeにあれば閲覧可、なければ閲覧不可
             var knowledge = await _context.Knowledges.FindAsync(id);
 
             if (knowledge == null)
@@ -47,27 +46,15 @@ namespace QuickRefsServer.Controllers
                 return NotFound();
             }
 
-            if (!knowledge.IsPrivate)
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var accessibility = await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, id, sessionId);
+            return accessibility switch
             {
-                return knowledge;
-            }
-            else
-            {
-                Request.Headers.TryGetValue("sessionId", out var sessionId);
-                var userId = _cache.GetString(sessionId);
-                bool isPrivileged =  _context.UserKnowledges
-                    .Where(uk => uk.KnowledgeId == id)
-                    .Any(uk => uk.UserId.ToString() == userId);
-                    
-                if(isPrivileged)
-                {
-                    return knowledge;
-                }
-                else
-                {
-                    return BadRequest("閲覧権限がありません");
-                }
-            }
+                KnowledgeAccessibility.None => BadRequest("閲覧権限がありません"),
+                KnowledgeAccessibility.Read or KnowledgeAccessibility.ReadAndWrite => knowledge,
+                _ => throw new NotImplementedException()
+            };
+
         }
 
         // PUT: api/Knowledges/5
@@ -75,13 +62,25 @@ namespace QuickRefsServer.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutKnowledge(Guid id, Knowledge knowledge)
         {
-            if (id != knowledge.Id)
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var accessibility = await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, id, sessionId);
+            if(accessibility == KnowledgeAccessibility.None || accessibility == KnowledgeAccessibility.Read)
+            {
+                return BadRequest("更新権限がありません");
+            }
+
+            var k = await _context.Knowledges.FindAsync(id);
+
+            if (k == null)
             {
                 return BadRequest();
             }
 
-            knowledge.UpdatedAt = DateTime.Now.ToUniversalTime();
-            _context.Entry(knowledge).State = EntityState.Modified;
+            k.Name = knowledge.Name;
+            k.Description = knowledge.Description;
+            k.IsPrivate = knowledge.IsPrivate;
+            k.UpdatedAt = DateTime.Now.ToUniversalTime();
+            _context.Entry(k).State = EntityState.Modified;
 
             try
             {
@@ -136,6 +135,14 @@ namespace QuickRefsServer.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteKnowledge(Guid id)
         {
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var accessibility = await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, id, sessionId);
+
+            if(accessibility == KnowledgeAccessibility.None || accessibility == KnowledgeAccessibility.Read)
+            {
+                return BadRequest("削除権限がありません");
+            }
+
             var knowledge = await _context.Knowledges.FindAsync(id);
             if (knowledge == null)
             {

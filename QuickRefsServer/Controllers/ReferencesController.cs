@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using QuickRefsServer.Models;
+using QuickRefsServer.Utils;
 
 namespace QuickRefsServer.Controllers
 {
@@ -24,11 +25,13 @@ namespace QuickRefsServer.Controllers
         }
 
         // GET: api/References
+        /*
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Reference>>> GetReferences()
         {
             return await _context.References.ToListAsync();
         }
+        */
 
         // GET: api/References
         [HttpGet("findbyknowledge/{id}")]
@@ -42,13 +45,19 @@ namespace QuickRefsServer.Controllers
         public async Task<ActionResult<Reference>> GetReference(Guid id)
         {
             var reference = await _context.References.FindAsync(id);
-
             if (reference == null)
             {
                 return NotFound();
             }
 
-            return reference;
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var accessibility = await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, reference.KnowledgeId, sessionId);
+
+            return accessibility switch
+            {
+                KnowledgeAccessibility.None => BadRequest("閲覧権限がありません"),
+                KnowledgeAccessibility.Read or KnowledgeAccessibility.ReadAndWrite => reference
+            };
         }
 
         // PUT: api/References/5
@@ -56,14 +65,16 @@ namespace QuickRefsServer.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutReference(Guid id, Reference reference)
         {
-            Request.Headers.TryGetValue("sessionId", out var sessionId);
-            var userId = _cache.GetString(sessionId);
-
             var r = await _context.References.FindAsync(id);
-            var k = await _context.Knowledges.FindAsync(r.KnowledgeId);
-            var isPrivileged = _context.UserKnowledges.Where(x => x.KnowledgeId == k.Id)
-                .Any(x => x.UserId == Guid.Parse(userId));
-            if(!isPrivileged)
+            if(r == null)
+            {
+                return BadRequest("更新対象のデータがありません");
+            }
+
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var accessibility = await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, r.KnowledgeId, sessionId);
+
+            if (accessibility == KnowledgeAccessibility.None || accessibility == KnowledgeAccessibility.Read)
             {
                 return BadRequest("編集権限がありません");
             }
@@ -99,13 +110,9 @@ namespace QuickRefsServer.Controllers
         public async Task<ActionResult<Reference>> PostReference(Reference reference)
         {
             Request.Headers.TryGetValue("sessionId", out var sessionId);
-            var userId = _cache.GetString(sessionId);
-
-            var k = await _context.Knowledges.FindAsync(reference.KnowledgeId);
-            var isPrivileged = _context.UserKnowledges.Where(x => x.KnowledgeId == k.Id)
-                .Any(x => x.UserId == Guid.Parse(userId));
-
-            if(!isPrivileged)
+            var accessibility = await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, reference.KnowledgeId, sessionId);
+           
+            if(accessibility == KnowledgeAccessibility.None || accessibility == KnowledgeAccessibility.Read)
             {
                 return BadRequest("追加権限がありません");
             }
@@ -128,6 +135,12 @@ namespace QuickRefsServer.Controllers
                 return NotFound();
             }
 
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var accessibility = await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, reference.KnowledgeId, sessionId);
+            if(accessibility != KnowledgeAccessibility.ReadAndWrite)
+            {
+                return BadRequest("削除権限がありません");
+            }
             _context.References.Remove(reference);
             await _context.SaveChangesAsync();
 
