@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using QuickRefsServer.Models;
 
 namespace QuickRefsServer.Controllers
@@ -14,17 +15,36 @@ namespace QuickRefsServer.Controllers
     public class TagsController : ControllerBase
     {
         private readonly QuickRefsDbContext _context;
-
-        public TagsController(QuickRefsDbContext context)
+        private readonly IDistributedCache _cache;
+        public TagsController(QuickRefsDbContext context, IDistributedCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
         // GET: api/Tags
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Tag>>> Gettags()
+        public async Task<ActionResult<IEnumerable<Tag>>> GetTags()
         {
-            return await _context.Tags.ToListAsync();
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            string userId = await _cache.GetStringAsync(sessionId);
+
+            // 閲覧可能なナレッジ：自分のナレッジまたはPublic
+            var visibleKnowledgeList = _context.UserKnowledges
+                .Where(uk => uk.UserId.ToString() == userId)
+                .Select(uk => uk.KnowledgeId)
+                .Union(_context.Knowledges.Where(k => !k.IsPrivate).Select(k => k.Id))
+                .Distinct();
+
+            // 閲覧可能なナレッジが存在するタグ
+            var visibleTags = _context.KnowledgeTags
+                .Where(kt => visibleKnowledgeList.Contains(kt.KnowledgeId))
+                .Select(kt => kt.TagId);
+
+            return await _context.Tags
+                .Where(t => visibleTags.Contains(t.Id))
+                .ToListAsync();
+
         }
 
         // GET: api/Tags/5
@@ -90,6 +110,12 @@ namespace QuickRefsServer.Controllers
         [HttpPost]
         public async Task<ActionResult<Tag>> PostTag(TagProfile tagProfile)
         {
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            if(string.IsNullOrEmpty(sessionId))
+            {
+                return BadRequest("ログインしてください");
+            }
+
             Tag tag = new Tag();
             tag.Id = Guid.NewGuid();
             tag.Name = tagProfile.Name;

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuickRefsServer.Models;
 using Microsoft.Extensions.Caching.Distributed;
+using QuickRefsServer.Utils;
 
 namespace QuickRefsServer.Controllers
 {
@@ -103,6 +104,13 @@ namespace QuickRefsServer.Controllers
         [HttpPost]
         public async Task<ActionResult<KnowledgeTag>> PostKnowledgeTag(KnowledgeTagProperty ktProp)
         {
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var accessibility = await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, ktProp.KnowledgeId, sessionId);
+            if(accessibility != KnowledgeAccessibility.ReadAndWrite)
+            {
+                return BadRequest("タグを追加する権限がありません");
+            }
+
             Tag tag = _context.Tags.SingleOrDefault(t => t.Name == ktProp.TagName);
 
             if (tag == null)

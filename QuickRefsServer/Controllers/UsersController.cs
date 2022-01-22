@@ -24,13 +24,16 @@ namespace QuickRefsServer.Controllers
         }
 
         // GET: api/Users
+        /*
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
             return await _context.Users.ToListAsync();
         }
+        */
 
         // GET: api/Users/5
+        /*
         [HttpGet("{id}")]
         public async Task<ActionResult<User>> GetUser(Guid id)
         {
@@ -43,6 +46,7 @@ namespace QuickRefsServer.Controllers
 
             return user;
         }
+        */
 
         // GET: api/Users/profile
         [HttpGet("profile")]
@@ -76,7 +80,7 @@ namespace QuickRefsServer.Controllers
 
             if (id != user.Id)
             {
-                return BadRequest();
+                return BadRequest("更新権限がありません");
             }
 
             user.ScreenName = bio.ScreenName;
@@ -103,6 +107,7 @@ namespace QuickRefsServer.Controllers
 
         // POST: api/Users
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        /*
         [HttpPost]
         public async Task<ActionResult<User>> PostUser(User user)
         {
@@ -111,6 +116,7 @@ namespace QuickRefsServer.Controllers
 
             return CreatedAtAction("GetUser", new { id = user.Id }, user);
         }
+        */
 
         // DELETE: api/Users/5
         [HttpDelete("{id}")]
