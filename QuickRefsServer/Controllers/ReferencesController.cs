@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using QuickRefsServer.Models;
 
 namespace QuickRefsServer.Controllers
@@ -14,10 +15,12 @@ namespace QuickRefsServer.Controllers
     public class ReferencesController : ControllerBase
     {
         private readonly QuickRefsDbContext _context;
+        private readonly IDistributedCache _cache;
 
-        public ReferencesController(QuickRefsDbContext context)
+        public ReferencesController(QuickRefsDbContext context, IDistributedCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
         // GET: api/References
@@ -53,12 +56,23 @@ namespace QuickRefsServer.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutReference(Guid id, Reference reference)
         {
-            if (id != reference.Id)
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var userId = _cache.GetString(sessionId);
+
+            var r = await _context.References.FindAsync(id);
+            var k = await _context.Knowledges.FindAsync(r.KnowledgeId);
+            var isPrivileged = _context.UserKnowledges.Where(x => x.KnowledgeId == k.Id)
+                .Any(x => x.UserId == Guid.Parse(userId));
+            if(!isPrivileged)
             {
-                return BadRequest();
+                return BadRequest("編集権限がありません");
             }
 
-            _context.Entry(reference).State = EntityState.Modified;
+            r.Name = reference.Name;
+            r.Description = reference.Description;
+            r.Url = reference.Url;
+            r.UpdatedAt = DateTime.Now.ToUniversalTime();
+            _context.Entry(r).State = EntityState.Modified;
 
             try
             {
@@ -84,6 +98,20 @@ namespace QuickRefsServer.Controllers
         [HttpPost]
         public async Task<ActionResult<Reference>> PostReference(Reference reference)
         {
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var userId = _cache.GetString(sessionId);
+
+            var k = await _context.Knowledges.FindAsync(reference.KnowledgeId);
+            var isPrivileged = _context.UserKnowledges.Where(x => x.KnowledgeId == k.Id)
+                .Any(x => x.UserId == Guid.Parse(userId));
+
+            if(!isPrivileged)
+            {
+                return BadRequest("追加権限がありません");
+            }
+
+            reference.CreatedAt = DateTime.Now.ToUniversalTime();
+            reference.UpdatedAt = DateTime.Now.ToUniversalTime();   
             _context.References.Add(reference);
             await _context.SaveChangesAsync();
 

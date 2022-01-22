@@ -5,6 +5,8 @@ using QuickRefsServer.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 string PostgresConnStr = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
+if(PostgresConnStr == null)
+    PostgresConnStr = "Host=localhost;Port=5432;UserId=quickrefs;Password=quickrefs;Database=quickrefs";
 
 builder.Services.AddControllers();
 builder.Services.AddDbContext<QuickRefsDbContext>(opt =>
