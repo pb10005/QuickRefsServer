@@ -40,8 +40,7 @@ namespace QuickRefsServer.Controllers
             {
                 // ログインセッションを保存する
                 Guid id = Guid.NewGuid();
-                var options = new DistributedCacheEntryOptions();
-                options.AbsoluteExpiration = DateTimeOffset.MaxValue;
+                var options = new DistributedCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60 * 60));
                 _cache.SetString(String.Format("quickrefs:sessionId:{0}", id), user.Id.ToString(), options);
                 return Ok(id);
             }
@@ -77,20 +76,6 @@ namespace QuickRefsServer.Controllers
             else
             {
                 return BadRequest("すでに使われているユーザー名です");
-            }
-        }
-
-        [HttpPost("auth")]
-        public ActionResult<bool> Auth(string name, string password)
-        {
-            bool isAuthOK = _context.Users.Any(user => user.Name == name && user.PasswordHash == password);
-            if (isAuthOK)
-            {
-                return Ok(isAuthOK);
-            }
-            else
-            {
-                return BadRequest();
             }
         }
 
