@@ -155,6 +155,13 @@ namespace QuickRefsServer.Controllers
             return NoContent();
         }
 
+        [HttpGet("check/{id}")]
+        public async Task<KnowledgeAccessibility> CheckAccessibility(Guid id)
+        {
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            return await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, id, sessionId);
+        }
+
         private bool KnowledgeExists(Guid id)
         {
             return _context.Knowledges.Any(e => e.Id == id);
