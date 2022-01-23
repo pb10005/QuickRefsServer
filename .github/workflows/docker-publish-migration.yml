@@ -7,7 +7,7 @@ name: Docker
 
 on:
   schedule:
-    - cron: '15 9 * * *'
+    - cron: '42 21 * * *'
   push:
     branches: [ master ]
     # Publish semver tags as releases.
@@ -19,7 +19,7 @@ env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
-  IMAGE_NAME: pb10005/quick-refs-server
+  IMAGE_NAME: pb10005/quick-refs-server-migration
 
 
 jobs:
@@ -75,7 +75,7 @@ jobs:
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: QuickRefsServer
-          target: final
+          target: migration
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
