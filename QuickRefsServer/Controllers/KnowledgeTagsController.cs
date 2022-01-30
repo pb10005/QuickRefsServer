@@ -136,10 +136,19 @@ namespace QuickRefsServer.Controllers
         }
 
         // DELETE: api/KnowledgeTags/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteKnowledgeTag(Guid id)
+        [HttpDelete("{knowledgeId}/{tagId}")]
+        public async Task<IActionResult> DeleteKnowledgeTag(Guid knowledgeId, Guid tagId)
         {
-            var knowledgeTag = await _context.KnowledgeTags.FindAsync(id);
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var accessibility = await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, knowledgeId, sessionId);
+            if (accessibility != KnowledgeAccessibility.ReadAndWrite)
+            {
+                return BadRequest("タグを削除する権限がありません");
+            }
+
+            var knowledgeTag = await _context.KnowledgeTags
+                .SingleOrDefaultAsync(kt => kt.KnowledgeId == knowledgeId &&
+                                            kt.TagId == tagId);
             if (knowledgeTag == null)
             {
                 return NotFound();
