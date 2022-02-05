@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using QuickRefsServer.Models;
+using QuickRefsServer.Utils;
 
 namespace QuickRefsServer.Controllers
 {
@@ -14,10 +16,12 @@ namespace QuickRefsServer.Controllers
     public class UserKnowledgesController : ControllerBase
     {
         private readonly QuickRefsDbContext _context;
+        private readonly IDistributedCache _cache;
 
-        public UserKnowledgesController(QuickRefsDbContext context)
+        public UserKnowledgesController(QuickRefsDbContext context, IDistributedCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
         // GET: api/UserKnowledges/findByUser/5
@@ -56,15 +60,29 @@ namespace QuickRefsServer.Controllers
 
         // PUT: api/UserKnowledges/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutUserKnowledge(Guid id, UserKnowledge userKnowledge)
+        [HttpPut("{toUserName}")]
+        public async Task<IActionResult> PutUserKnowledge(string toUserName, UserKnowledge userKnowledge)
         {
-            if (id != userKnowledge.Id)
+            Request.Headers.TryGetValue("sessionId", out var sessionId);
+            var  fromUserId = await _cache.GetStringAsync(sessionId);
+            User? toUser = await _context.Users.SingleOrDefaultAsync(u => u.Name == toUserName);
+            var accessibility = await SessionUtility.CheckKnowledgeAccesibility(_context, _cache, userKnowledge.KnowledgeId, sessionId);
+
+            if (accessibility != KnowledgeAccessibility.ReadAndWrite)
             {
-                return BadRequest();
+                return BadRequest("実行権限がありません");
+            }
+            UserKnowledge? uk = await _context.UserKnowledges
+                .SingleOrDefaultAsync(uk => uk.KnowledgeId == userKnowledge.KnowledgeId
+                                            && uk.UserId == Guid.Parse(fromUserId));
+            
+            if(uk == default(UserKnowledge) || toUser == default(User))
+            {
+                return BadRequest("引数が不正です");
             }
 
-            _context.Entry(userKnowledge).State = EntityState.Modified;
+            uk.UserId = toUser.Id;
+            _context.Entry(uk).State = EntityState.Modified;
 
             try
             {
@@ -72,14 +90,7 @@ namespace QuickRefsServer.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!UserKnowledgeExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                throw;
             }
 
             return NoContent();
