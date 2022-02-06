@@ -20,16 +20,7 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(
         builder =>
         {
-            builder.WithOrigins("http://localhost:3000")
-                .AllowAnyMethod()
-                .AllowAnyHeader();
-            builder.WithOrigins("http://192.168.2.54:3000")
-                .AllowAnyMethod()
-                .AllowAnyHeader();
-            builder.WithOrigins("http://nodejs.svr:3000")
-                .AllowAnyMethod()
-                .AllowAnyHeader();
-            builder.WithOrigins("https://quickrefs.netlify.app")
+            builder.WithOrigins(Environment.GetEnvironmentVariable("CLIENT_URL"))
                 .AllowAnyMethod()
                 .AllowAnyHeader();
         });
