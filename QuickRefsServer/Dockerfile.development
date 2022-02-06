@@ -1,0 +1,28 @@
+#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
+
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS base
+EXPOSE 7090
+EXPOSE 5090
+WORKDIR /src
+COPY ["./QuickRefsServer.csproj", "QuickRefsServer/"]
+RUN dotnet restore "QuickRefsServer/QuickRefsServer.csproj"
+COPY . ./QuickRefsServer/
+WORKDIR "/src/QuickRefsServer"
+
+FROM base AS dev
+RUN dotnet dev-certs https -ep %USERPROFILE%\.aspnet\https\aspnetapp.pfx -p developmentonly
+RUN dotnet dev-certs https --trust
+ENTRYPOINT dotnet run
+
+FROM base AS generate-script
+ENV PATH="$PATH:/root/.dotnet/tools"
+RUN dotnet tool install --global dotnet-ef --version 6.0.0 \
+    && dotnet ef migrations script -i -o /migration/migrationscript.sql
+
+FROM debian:bullseye-slim AS migration
+ENV PATH="$PATH:/usr/local/pgsql/bin/"
+WORKDIR /migration
+COPY --from=generate-script /migration .
+RUN apt update \
+    && apt install -y postgresql-client
+CMD psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DATABASE -f ./migrationscript.sql
